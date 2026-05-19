@@ -36,19 +36,19 @@
 ### 模块结构
 ```
 structure-audit
-├── structure-audit-api          # API 接口定义模块
-│   ├── aop/                      # AOP 注解定义
-│   ├── constant/                  # 常量定义
-│   ├── dto/                      # 数据传输对象
-│   ├── service/                   # 远程服务接口
-│   └── vo/                       # 视图对象
-├── structure-audit-domain        # 领域层模块
+├── structure-audit-api              # API 接口定义模块
+│   ├── aop/                        # AOP 注解定义（@AuditLog）
+│   ├── constant/                   # 常量定义（RabbitMQ 相关常量）
+│   ├── dto/                       # 数据传输对象（AuditDTO）
+│   ├── service/                   # 远程服务接口（Feign 接口）
+│   └── vo/                        # 视图对象
+├── structure-audit-domain          # 领域层模块
 │   ├── assembler/                 # 对象转换器
 │   ├── controller/                # 控制器
 │   ├── entity/                   # 实体类
 │   ├── mapper/                   # MyBatis Mapper
 │   └── service/                  # 领域服务
-├── structure-audit-biz           # 业务逻辑层模块
+├── structure-audit-biz            # 业务逻辑层模块
 │   ├── aspect/                   # 切面类
 │   ├── configureation/           # 配置类
 │   ├── controller/              # 控制器
@@ -57,8 +57,15 @@ structure-audit
 │   ├── repository/              # ES 仓储
 │   ├── service/                # 业务服务
 │   └── task/                   # 定时任务
-├── structure-audit-boot         # 启动模块
-└── structure-audit-dependencies  # 依赖管理模块
+├── structure-audit-boot          # 启动模块
+├── structure-audit-dependencies  # 依赖管理模块
+└── structure-audit-client-example # 客户端接入示例模块
+    ├── aspect/                  # 审计切面实现
+    ├── config/                  # Web 配置
+    ├── controller/             # 示例控制器
+    ├── feign/                  # Feign 客户端
+    ├── interceptor/            # 租户上下文拦截器
+    └── service/                # 审计服务实现
 ```
 
 ### 技术栈
@@ -136,6 +143,114 @@ mvn clean package -DskipTests
 2. **启动服务**
 ```bash
 java -jar target/audit-center.jar
+```
+
+## 示例工程使用
+
+`structure-audit-client-example` 模块提供了完整的三种接入方式示例，建议在实际接入前先运行示例工程进行测试。
+
+### 快速开始
+
+#### 1. 编译主项目（先安装依赖到本地仓库）
+
+```bash
+cd structure-audit
+mvn clean install -DskipTests
+```
+
+#### 2. 修改配置
+
+编辑 `structure-audit-client-example/src/main/resources/application.yml`，配置审计服务地址和 RabbitMQ 连接：
+
+```yaml
+server:
+  port: 8081
+
+spring:
+  application:
+    name: audit-client-example
+
+  rabbitmq:
+    host: 172.24.20.15
+    port: 5672
+    username: root
+    password: 123456
+
+audit:
+  server:
+    url: http://audit-center
+```
+
+#### 3. 编译运行
+
+```bash
+cd structure-audit-client-example
+mvn clean compile
+mvn spring-boot:run
+```
+
+#### 4. 测试接口
+
+服务启动后，可通过以下接口测试三种审计方式：
+
+##### 方式一：MQ消息方式
+
+```bash
+# 用户登录
+curl -X POST http://localhost:8081/api/example/mq/login \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
+  -d '{"username":"admin","password":"123456"}'
+
+# 数据导出
+curl -X POST http://localhost:8081/api/example/mq/export \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
+  -d '{"type":"excel","startTime":"2026-01-01","endTime":"2026-05-31"}'
+```
+
+##### 方式二：HTTP远程调用方式
+
+```bash
+# 创建订单
+curl -X POST http://localhost:8081/api/example/http/order \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
+  -d '{"productId":"P001","quantity":10,"address":"北京市朝阳区"}'
+
+# 删除用户
+curl -X DELETE http://localhost:8081/api/example/http/user/user-1001 \
+  -H "X-Tenant-Id: 4"
+```
+
+##### 方式三：注解方式
+
+```bash
+# 用户注册（操作人信息通过请求头传递）
+curl -X POST http://localhost:8081/api/example/annotation/register \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
+  -H "X-Operator-Id: user-003" \
+  -H "X-Operator-Name: 王五" \
+  -d '{"username":"newuser","password":"123456","email":"test@example.com"}'
+
+# 修改密码
+curl -X POST http://localhost:8081/api/example/annotation/change-password \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
+  -H "X-Operator-Id: user-001" \
+  -H "X-Operator-Name: 张三" \
+  -d '{"oldPassword":"123456","newPassword":"654321"}'
+```
+
+### 验证租户透传
+
+测试完成后，可以通过审计中心的查询接口验证租户ID是否正确透传：
+
+```bash
+# 查询实时审计记录（需要先启动审计中心）
+curl -X GET "http://audit-center/api/audit/list?currentPage=1&pageSize=10" \
+  -H "Content-Type: application/json"
 ```
 
 ## API 接口
@@ -224,6 +339,72 @@ POST /open-api/audit/add
 }
 ```
 
+## 租户上下文集成
+
+审计系统已集成租户上下文支持，审计消息会自动携带租户ID（organizationId），实现多租户数据隔离。
+
+### 请求头说明
+
+| 请求头名称 | 说明 | 示例值 |
+|------------|------|--------|
+| `X-Tenant-Id` | 租户ID | `4` |
+| `X-Operator-Id` | 操作人ID | `user-001` |
+| `X-Operator-Name` | 操作人名称 | `张三` |
+
+### 客户端发送消息
+
+在发送审计消息时，系统会自动从 `TenantContextHolder` 获取当前租户ID：
+
+```java
+// 示例：获取租户ID
+private Long getOrganizationId() {
+    try {
+        String tenantId = TenantContextHolder.getTenantId();
+        if (tenantId != null && !tenantId.isEmpty()) {
+            return Long.parseLong(tenantId);
+        }
+    } catch (Exception e) {
+        log.warn("获取租户ID失败: {}", e.getMessage());
+    }
+    return 1L;  // 默认租户ID
+}
+
+// 发送请求消息时自动注入租户ID
+public String sendRequestMessage(...) {
+    AuditDTO auditDTO = new AuditDTO();
+    auditDTO.setOrganizationId(getOrganizationId());  // 自动获取租户ID
+    // ...
+}
+```
+
+### 服务端接收消息
+
+审计服务在接收消息后会自动设置租户上下文：
+
+```java
+// 示例：消息监听器中的实现
+@RabbitListener(queues = AuditRabbitConstants.AUDIT_REQUEST_QUEUE)
+public void onRequestMessage(AuditDTO auditDTO) {
+    try {
+        // 设置租户上下文
+        if (auditDTO.getOrganizationId() != null) {
+            TenantContextHolder.setTenantId(String.valueOf(auditDTO.getOrganizationId()));
+        }
+        // 处理业务逻辑
+        auditBizService.handleRequest(auditDTO);
+    } finally {
+        TenantContextHolder.clear();  // 清理租户上下文
+    }
+}
+```
+
+### 数据合并
+
+请求和响应消息合并时，租户ID的优先级为：
+1. 请求消息中的 organizationId（优先）
+2. 响应消息中的 organizationId
+
+
 ## RabbitMQ 配置
 
 ### 交换机和队列定义
@@ -255,9 +436,21 @@ POST /open-api/audit/add
 }
 ```
 
-## 发送审计消息（客户端接入指南）
+## 客户端接入方式
 
-### 1. 引入依赖
+审计中心提供三种接入方式，适用于不同的业务场景：
+
+### 三种调用方式对比
+
+| 方式 | 适用场景 | 优点 | 缺点 |
+|------|----------|------|------|
+| **MQ消息方式** | 需要记录请求和响应的完整链路 | 异步解耦，性能好，支持请求-响应分离 | 需要配置 RabbitMQ |
+| **HTTP远程调用** | 简单的单条审计记录 | 实现简单，无需MQ | 同步调用，有网络开销 |
+| **注解方式** | 方法级自动审计 | 侵入性低，代码简洁 | 需要AOP支持 |
+
+### 方式一：MQ消息方式（详细流程）
+
+#### 1. 引入依赖
 
 在您的业务项目中添加审计相关的依赖：
 
@@ -271,7 +464,7 @@ POST /open-api/audit/add
 
 **注意**：如果 `structure-audit-api` 未发布到私服，您可以直接复制 `AuditDTO` 和 `AuditRabbitConstants` 类到您的项目中。
 
-### 2. 配置 RabbitMQ 连接
+#### 2. 配置 RabbitMQ 连接
 
 在 `application.yml` 中添加审计消息队列的连接配置：
 
@@ -285,7 +478,7 @@ spring:
     virtual-host: ${RABBITMQ_VHOST:/}
 ```
 
-### 3. 注入 RabbitTemplate
+#### 3. 注入 RabbitTemplate
 
 ```java
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -300,9 +493,9 @@ public class AuditMessageSender {
 }
 ```
 
-### 4. 发送审计消息（标准流程）
+#### 4. 发送审计消息（标准流程）
 
-#### 步骤一：发送请求消息
+##### 步骤一：发送请求消息
 
 在业务方法开始时，生成唯一的 `requestId`，发送请求消息到审计系统：
 
@@ -358,7 +551,7 @@ public class UserService {
 }
 ```
 
-#### 步骤二：发送响应消息
+##### 步骤二：发送响应消息
 
 业务处理完成后，发送响应消息到审计系统：
 
@@ -402,7 +595,7 @@ private void sendFailResponse(String requestId, Exception e, long startTime) {
 }
 ```
 
-### 5. 简化版本（仅发送成功消息）
+#### 5. 简化版本（仅发送成功消息）
 
 如果只需要记录成功场景，可以使用简化版本：
 
@@ -460,7 +653,161 @@ public void exportData(ExportRequest request) {
 }
 ```
 
-### 6. 消息字段说明
+### 方式二：HTTP远程调用方式
+
+#### 1. 引入依赖
+
+```xml
+<dependency>
+    <groupId>cn.structured</groupId>
+    <artifactId>structure-audit-api</artifactId>
+    <version>1.0.1-SNAPSHOT</version>
+</dependency>
+```
+
+#### 2. 配置审计服务地址
+
+```yaml
+audit:
+  server:
+    url: http://audit-center:8080
+```
+
+#### 3. 使用示例
+
+```java
+import cn.structured.audit.api.service.IRemoteAuditService;
+import cn.structured.audit.api.dto.AuditDTO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class OrderService {
+
+    @Autowired
+    private IRemoteAuditService auditService;
+
+    public void createOrder(OrderRequest request) {
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // 执行业务逻辑
+            // ...
+            
+            // 记录审计日志（直接调用接口）
+            AuditDTO auditDTO = AuditDTO.builder()
+                .requestId(UUID.randomUUID().toString())
+                .operatorId(getCurrentUserId())
+                .operatorName(getCurrentUserName())
+                .action("创建订单")
+                .module("订单模块")
+                .operationParams(JSON.toJSONString(request))
+                .operationResult("{\"code\":200,\"orderId\":\"ORD-123456\"}")
+                .status(1)
+                .ipAddress(getClientIpAddress())
+                .costTime(System.currentTimeMillis() - startTime)
+                .build();
+            
+            auditService.addAudit(auditDTO);
+            
+        } catch (Exception e) {
+            // 记录失败审计
+            auditService.addAudit(AuditDTO.builder()
+                .requestId(UUID.randomUUID().toString())
+                .operatorId(getCurrentUserId())
+                .operatorName(getCurrentUserName())
+                .action("创建订单")
+                .module("订单模块")
+                .status(0)
+                .errorMsg(e.getMessage())
+                .costTime(System.currentTimeMillis() - startTime)
+                .build());
+            throw e;
+        }
+    }
+}
+```
+
+### 方式三：注解方式
+
+#### 1. 引入依赖
+
+```xml
+<dependency>
+    <groupId>cn.structured</groupId>
+    <artifactId>structure-audit-api</artifactId>
+    <version>1.0.1-SNAPSHOT</version>
+</dependency>
+```
+
+#### 2. 使用 @AuditLog 注解
+
+```java
+import cn.structured.audit.api.aop.AuditLog;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/user")
+public class UserController {
+
+    @AuditLog(value = "用户登录", module = "用户模块")
+    @PostMapping("/login")
+    public Result<String> login(@RequestBody LoginRequest request) {
+        // 业务逻辑
+        return Result.success("登录成功");
+    }
+
+    @AuditLog(value = "用户注册", module = "用户模块")
+    @PostMapping("/register")
+    public Result<String> register(@RequestBody RegisterRequest request) {
+        // 业务逻辑
+        return Result.success("注册成功");
+    }
+
+    @AuditLog(value = "修改密码", module = "用户模块")
+    @PostMapping("/change-password")
+    public Result<Void> changePassword(@RequestBody PasswordRequest request) {
+        // 业务逻辑
+        return Result.success();
+    }
+}
+```
+
+#### 3. 配置租户上下文（可选）
+
+如果使用注解方式，需要配置租户上下文拦截器以自动获取操作人信息：
+
+```java
+@Component
+public class TenantContextInterceptor implements HandlerInterceptor {
+    
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        String tenantId = request.getHeader("X-Tenant-Id");
+        String operatorId = request.getHeader("X-Operator-Id");
+        String operatorName = request.getHeader("X-Operator-Name");
+        
+        if (tenantId != null) {
+            TenantContextHolder.setTenantId(tenantId);
+        }
+        if (operatorId != null) {
+            TenantContextHolder.setOperatorId(operatorId);
+        }
+        if (operatorName != null) {
+            TenantContextHolder.setOperatorName(operatorName);
+        }
+        
+        return true;
+    }
+    
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        TenantContextHolder.clear();
+    }
+}
+```
+
+### 消息字段说明
 
 | 字段名 | 必填 | 说明 |
 |--------|------|------|
@@ -490,6 +837,39 @@ public void exportData(ExportRequest request) {
 
 **Q: 响应消息中哪些字段是必须的？**
 > A: `requestId` 和 `status` 是必须的，其他字段可省略（会被请求消息中的对应字段填充）
+
+**Q: 三种接入方式应该如何选择？**
+> A: 根据业务场景选择：
+> - **MQ消息方式**：适合需要完整请求-响应链路追踪的场景，如用户登录、数据操作等
+> - **HTTP远程调用**：适合简单的单条审计记录，如后台管理操作、系统事件等
+> - **注解方式**：适合方法级自动审计，如REST API的通用记录场景
+
+**Q: 注解方式如何获取操作人信息？**
+> A: 注解方式通过租户上下文拦截器自动获取操作人信息：
+> - 从请求头 `X-Operator-Id` 获取操作人ID
+> - 从请求头 `X-Operator-Name` 获取操作人名称
+> - 如果未设置，会自动使用默认租户ID（1）和匿名用户
+
+**Q: HTTP远程调用方式需要配置RabbitMQ吗？**
+> A: 不需要。HTTP远程调用方式通过Feign直接调用审计服务的REST API，只需要配置审计服务地址即可。
+
+**Q: MQ方式必须发送请求和响应两条消息吗？**
+> A: 是的。审计系统采用请求-响应分离模式，只发请求消息数据不会持久化到数据库。只发响应消息会导致数据不完整。
+
+**Q: 租户隔离是如何实现的？**
+> A: 系统通过 `organizationId` 字段实现租户隔离：
+> - 每个租户的审计数据相互独立
+> - 租户ID通过 `TenantContextHolder` 自动获取
+> - 可以在消息中显式传递租户ID，或通过请求头自动透传
+
+**Q: 注解方式采用同步还是异步记录？**
+> A: 注解方式采用异步记录审计日志，不会影响业务接口的响应时间。
+
+**Q: 所有审计方式的异常处理策略是什么？**
+> A: 所有审计方式都有异常捕获机制：
+> - 审计失败不会影响主业务逻辑
+> - 建议在业务逻辑中使用 try-catch 包裹审计代码
+> - 审计失败时记录日志便于排查问题
 
 ## 定时任务
 
@@ -579,6 +959,39 @@ curl -X POST http://localhost:8080/open-api/audit/add \
     "costTime": 5000
   }'
 ```
+
+## 依赖模块说明
+
+客户端项目可以通过 Maven 依赖方式复用主项目的模块，避免代码重复：
+
+| 复用模块 | 引入的类 | 说明 |
+|----------|----------|------|
+| `structure-audit-api` | `AuditDTO`, `AuditRabbitConstants`, `AuditLog` | 提供消息对象、常量和注解定义 |
+| `structure-audit-domain` | `AuditAssembler` | 提供领域对象转换器 |
+
+### Maven 依赖配置
+
+```xml
+<dependencies>
+    <!-- API 模块 -->
+    <dependency>
+        <groupId>cn.structured</groupId>
+        <artifactId>structure-audit-api</artifactId>
+        <version>1.0.1-SNAPSHOT</version>
+    </dependency>
+    
+    <!-- Domain 模块（可选） -->
+    <dependency>
+        <groupId>cn.structured</groupId>
+        <artifactId>structure-audit-domain</artifactId>
+        <version>1.0.1-SNAPSHOT</version>
+    </dependency>
+</dependencies>
+```
+
+**注意**：如果主项目的模块未发布到私服，您可以：
+1. 将需要的类（如 `AuditDTO`、`AuditRabbitConstants`、`AuditLog`）直接复制到客户端项目中
+2. 或将主项目安装到本地 Maven 仓库（`mvn clean install -DskipTests`）
 
 ## 注意事项
 

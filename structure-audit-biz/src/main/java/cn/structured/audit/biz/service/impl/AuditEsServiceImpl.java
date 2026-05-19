@@ -77,24 +77,36 @@ public class AuditEsServiceImpl implements IAuditEsService {
         List<Audit> result = new ArrayList<>();
         try {
             Criteria criteria = new Criteria();
+            boolean hasCondition = false;
 
             if (action != null && !action.isEmpty()) {
                 criteria = criteria.and("action").is(action);
+                hasCondition = true;
             }
             if (module != null && !module.isEmpty()) {
                 criteria = criteria.and("module").is(module);
+                hasCondition = true;
             }
             if (status != null) {
                 criteria = criteria.and("status").is(status);
+                hasCondition = true;
             }
             if (startTime != null && !startTime.isEmpty()) {
                 criteria = criteria.and("createTime").greaterThanEqual(startTime);
+                hasCondition = true;
             }
             if (endTime != null && !endTime.isEmpty()) {
                 criteria = criteria.and("createTime").lessThanEqual(endTime);
+                hasCondition = true;
             }
 
-            Query query = new CriteriaQuery(criteria).addSort(Sort.by(Sort.Direction.DESC, "createTime"));
+            Query query;
+            if (hasCondition) {
+                query = new CriteriaQuery(criteria).addSort(Sort.by(Sort.Direction.DESC, "createTime"));
+            } else {
+                query = new CriteriaQuery(new Criteria()).addSort(Sort.by(Sort.Direction.DESC, "createTime"));
+            }
+            
             SearchHits<AuditEs> searchHits = elasticsearchOperations.search(query, AuditEs.class);
 
             searchHits.forEach(hit -> result.add(convertFromEs(hit.getContent())));
