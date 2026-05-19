@@ -1,0 +1,109 @@
+spring:
+  main:
+    allow-circular-references:  true
+  application:
+    name: audit-center
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  # 数据源配置
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://172.24.20.15:3306/audit?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8
+    username: root
+    password: 123456
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 15
+      auto-commit: true
+      idle-timeout: 30000
+      pool-name: MessageCenterHikariCP
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+  # Redis配置
+  redis:
+    host: 172.24.20.15
+    port: 6379
+    password: 123456
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+  flyway:
+    enabled: true # 开启flyway
+    clean-disabled: true # 禁止清理数据表
+    table: flyway_schema_history # 版本控制信息表名，默认为flyway_schema_history
+    out-of-order: false # 是否允许不按顺序迁移
+    baseline-on-migrate: true # 如果数据库不是空表，需要设置为true，否则启动报错
+    baseline-version: 1 # 和baseline-on-migrate搭配使用，小于此版本的不执行
+    # schemas: 不设置使用默认Spring连接数据的地址和数据库
+    validate-on-migrate: true # 执行迁移时是否自动调用验证
+    locations: classpath:db/migration
+  # 配置数据库，flyway那边就无需再进行数据的配置了
+  rabbitmq:
+    host: 172.24.20.15
+    port: 5672
+    username: root
+    password: 123456
+    virtual-host: /
+    publisher-confirm-type: correlated # 开启confirmCallback
+    publisher-returns: true
+    listener:
+      simple:
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 50
+        retry:
+          enabled: true    # 开启消费重试机制
+          max-attempts: 3  # 最大重试机制，默认为3
+          initial-interval: 1000  # 重试间隔,单位毫秒,默认1000
+        acknowledge-mode: manual
+        default-requeue-rejected: false
+# MyBatis Plus配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+  global-config:
+    db-config:
+      id-type: AUTO
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:mapper/**/*.xml
+
+# Structure配置
+structure:
+  oauth:
+    resource:
+      resource-id: audit-center
+      antMatchers:
+        unAuthenticated:
+          - /**
+
+# Swagger配置
+swagger:
+  enabled: true
+  title: 消息中心API文档
+  description: 基于插件化架构的消息中心系统
+  version: 1.0.0
+  contact:
+    name: Message Center Team
+    email: support@example.com
+  base-package: com.structure.audit.domain
+
+# 日志配置
+logging:
+  level:
+    com.structure.message: DEBUG
+    org.springframework.web: INFO
+    com.baomidou.mybatisplus: DEBUG

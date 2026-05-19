@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.structured</groupId>
+        <artifactId>structure-dependencies</artifactId>
+        <version>1.2.10</version>
+    </parent>
+
+    <artifactId>structure-audit-dependencies</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+    <description>用户中心</description>
+
+    <properties>
+        <revision>1.0.1-SNAPSHOT</revision>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <structure-oauth.version>1.0.3</structure-oauth.version>
+        <structure-security.version>1.0.3</structure-security.version>
+        <structure.version>1.2.10</structure.version>
+        <spring-boot.version>2.7.18</spring-boot.version>
+        <mysql.version>8.0.13</mysql.version>
+        <job.version>1.0.3</job.version>
+    </properties>
+
+    <modules>
+        <module>../structure-audit-api</module>
+        <module>../structure-audit-domain</module>
+        <module>../structure-audit-biz</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 引用父模块 -->
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-boot-parent</artifactId>
+                <version>${structure.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-oauth-dependencies</artifactId>
+                <version>${structure-oauth.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-security-dependencies</artifactId>
+                <version>${structure-security.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-job-starter</artifactId>
+                <version>${job.version}</version>
+            </dependency>
+
+            <!-- 引用子模块 -->
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-audit-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-audit-domain</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-audit-biz</artifactId>
+                <version>${revision}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

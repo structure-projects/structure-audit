@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.structured</groupId>
+        <artifactId>structure-audit-dependencies</artifactId>
+        <version>${revision}</version>
+        <relativePath>../structure-audit-dependencies/pom.xml</relativePath>
+    </parent>
+
+    <packaging>jar</packaging>
+    <name>structure-audit-domain</name>
+    <artifactId>structure-audit-domain</artifactId>
+    <description>审计模块</description>
+
+    <dependencies>
+        <!-- mybatis-plus starter-->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-mybatis-plus-starter</artifactId>
+        </dependency>
+        <!-- structured 生态公共包 -->
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-audit-api</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

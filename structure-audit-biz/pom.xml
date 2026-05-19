@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.structured</groupId>
+        <artifactId>structure-audit-dependencies</artifactId>
+        <version>${revision}</version>
+        <relativePath>../structure-audit-dependencies/pom.xml</relativePath>
+    </parent>
+
+    <packaging>jar</packaging>
+    <name>structure-audit-biz</name>
+    <artifactId>structure-audit-biz</artifactId>
+    <description>审计模块</description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-audit-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-redis-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-security-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-tenant-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-job-starter</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>
