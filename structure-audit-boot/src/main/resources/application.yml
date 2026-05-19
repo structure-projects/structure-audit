@@ -94,6 +94,11 @@ structure:
       antMatchers:
         unAuthenticated:
           - /**
+  # 审计存储配置
+  audit:
+    storage:
+      # 存储策略: MYSQL(仅存储MySQL), ELASTICSEARCH(仅存储ES), BOTH(同时存储)
+      type: MYSQL
 
 # Swagger配置
 swagger:

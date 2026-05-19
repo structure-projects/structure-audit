@@ -26,6 +26,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 审计API控制器
+ * 提供审计数据查询接口，包括实时数据（MySQL）和历史数据（ES）
+ *
+ * @author structured
+ * @since 2026-01-01
+ */
 @Slf4j
 @Api(tags = "审计模块")
 @RestController
@@ -36,12 +43,24 @@ public class AuditController {
     private final IAuditService auditService;
     private final IAuditEsService auditEsService;
 
+    /**
+     * 日期时间格式化器
+     * 用于ES查询中的时间参数格式化
+     */
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-
+    /**
+     * 查询历史操作记录（ES）
+     * 从Elasticsearch中查询历史审计数据，支持按条件筛选
+     *
+     * @param query 查询条件（action、module、status、startTime、endTime）
+     * @return 审计记录列表
+     */
     @ApiOperation("查询历史操作记录(ES)")
     @GetMapping("/history/list")
     public ResResultVO<List<AuditVO>> historyList(AuditQuery query) {
+        log.info("Querying audit history from ES, query: {}", query);
+        
         String startTime = query.getStartTime() != null ? query.getStartTime().format(FORMATTER) : null;
         String endTime = query.getEndTime() != null ? query.getEndTime().format(FORMATTER) : null;
         
@@ -57,6 +76,7 @@ public class AuditController {
                 .map(AuditAssembler::assembler)
                 .collect(Collectors.toList());
         
+        log.info("Query audit history from ES completed, found {} records", voList.size());
         return ResultUtilSimpleImpl.success(voList);
     }
 }
