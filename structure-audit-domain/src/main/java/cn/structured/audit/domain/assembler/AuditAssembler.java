@@ -37,6 +37,7 @@ public class AuditAssembler {
                 .ipAddress(audit.getIpAddress())
                 .userAgent(audit.getUserAgent())
                 .costTime(audit.getCostTime())
+                .tenantId(audit.getOrganizationId())
                 .build();
     }
 

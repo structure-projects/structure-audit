@@ -39,3 +39,10 @@ audit:
 logging:
   level:
     cn.structured.example.audit: DEBUG
+structure:
+  oauth:
+    resource:
+      resource-id:  audit-client-example
+      antMatchers:
+        unAuthenticated:
+          - /**

@@ -3,6 +3,7 @@ package cn.structured.example.audit.client.service;
 import cn.structured.audit.api.constant.AuditRabbitConstants;
 import cn.structured.audit.api.dto.AuditDTO;
 import cn.structured.audit.api.service.IRemoteAuditService;
+import cn.structure.starter.tenant.TenantContextHolder;
 import com.alibaba.fastjson.JSON;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class AuditService {
 
         AuditDTO auditDTO = new AuditDTO();
         auditDTO.setRequestId(requestId);
+        auditDTO.setOrganizationId(getOrganizationId());
         auditDTO.setOperatorId(operatorId);
         auditDTO.setOperatorName(operatorName);
         auditDTO.setAction(action);
@@ -41,7 +43,8 @@ public class AuditService {
                     AuditRabbitConstants.AUDIT_REQUEST_ROUTING_KEY,
                     auditDTO
             );
-            log.info("MQ请求消息发送成功, requestId: {}, action: {}", requestId, action);
+            log.info("MQ请求消息发送成功, requestId: {}, action: {}, organizationId: {}",
+                    requestId, action, auditDTO.getOrganizationId());
         } catch (Exception e) {
             log.error("MQ请求消息发送失败, requestId: {}", requestId, e);
         }
@@ -52,6 +55,7 @@ public class AuditService {
     public void sendSuccessResponse(String requestId, Object result, long startTime) {
         AuditDTO auditDTO = new AuditDTO();
         auditDTO.setRequestId(requestId);
+        auditDTO.setOrganizationId(getOrganizationId());
         auditDTO.setStatus(1);
         auditDTO.setOperationResult(result != null ? JSON.toJSONString(result) : null);
         auditDTO.setCostTime(System.currentTimeMillis() - startTime);
@@ -62,7 +66,8 @@ public class AuditService {
                     AuditRabbitConstants.AUDIT_RESPONSE_ROUTING_KEY,
                     auditDTO
             );
-            log.info("MQ成功响应消息发送成功, requestId: {}", requestId);
+            log.info("MQ成功响应消息发送成功, requestId: {}, organizationId: {}",
+                    requestId, auditDTO.getOrganizationId());
         } catch (Exception e) {
             log.error("MQ成功响应消息发送失败, requestId: {}", requestId, e);
         }
@@ -71,6 +76,7 @@ public class AuditService {
     public void sendFailResponse(String requestId, String errorMsg, long startTime) {
         AuditDTO auditDTO = new AuditDTO();
         auditDTO.setRequestId(requestId);
+        auditDTO.setOrganizationId(getOrganizationId());
         auditDTO.setStatus(0);
         auditDTO.setErrorMsg(errorMsg);
         auditDTO.setCostTime(System.currentTimeMillis() - startTime);
@@ -81,7 +87,8 @@ public class AuditService {
                     AuditRabbitConstants.AUDIT_RESPONSE_ROUTING_KEY,
                     auditDTO
             );
-            log.info("MQ失败响应消息发送成功, requestId: {}", requestId);
+            log.info("MQ失败响应消息发送成功, requestId: {}, organizationId: {}",
+                    requestId, auditDTO.getOrganizationId());
         } catch (Exception e) {
             log.error("MQ失败响应消息发送失败, requestId: {}", requestId, e);
         }
@@ -92,6 +99,7 @@ public class AuditService {
                                Integer status, String errorMsg, String ipAddress, Long costTime) {
         AuditDTO auditDTO = new AuditDTO();
         auditDTO.setRequestId(UUID.randomUUID().toString());
+        auditDTO.setOrganizationId(getOrganizationId());
         auditDTO.setOperatorId(operatorId);
         auditDTO.setOperatorName(operatorName);
         auditDTO.setAction(action);
@@ -105,10 +113,23 @@ public class AuditService {
 
         try {
             remoteAuditService.saveAuditRecord(auditDTO);
-            log.info("HTTP审计日志添加成功, action: {}", action);
+            log.info("HTTP审计日志添加成功, action: {}, organizationId: {}",
+                    action, auditDTO.getOrganizationId());
         } catch (Exception e) {
             log.error("HTTP审计日志添加失败, action: {}", action, e);
         }
+    }
+
+    private Long getOrganizationId() {
+        try {
+            String tenantId = TenantContextHolder.getTenantId();
+            if (tenantId != null && !tenantId.isEmpty()) {
+                return Long.parseLong(tenantId);
+            }
+        } catch (Exception e) {
+            log.warn("获取租户ID失败: {}", e.getMessage());
+        }
+        return 1L;
     }
 
     private String getClientIp(HttpServletRequest request) {

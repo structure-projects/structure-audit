@@ -22,6 +22,7 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <structure-oauth.version>1.0.3</structure-oauth.version>
         <structure-cloud.version>1.0.3</structure-cloud.version>
     </properties>
 
@@ -47,6 +48,11 @@
             <artifactId>structure-log-starter</artifactId>
         </dependency>
 
+        <!-- 认证资源 -->
+        <dependency>
+            <artifactId>structure-oauth-resource-starter</artifactId>
+            <groupId>cn.structured</groupId>
+        </dependency>
         <!-- Spring Cloud 基础 -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -107,6 +113,11 @@
             <version>${revision}</version>
         </dependency>
 
+        <dependency>
+            <groupId>cn.structured</groupId>
+            <artifactId>structure-tenant-starter</artifactId>
+        </dependency>
+
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -114,6 +125,13 @@
                 <groupId>cn.structured</groupId>
                 <artifactId>structure-cloud-dependencies</artifactId>
                 <version>${structure-cloud.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>cn.structured</groupId>
+                <artifactId>structure-oauth-dependencies</artifactId>
+                <version>${structure-oauth.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

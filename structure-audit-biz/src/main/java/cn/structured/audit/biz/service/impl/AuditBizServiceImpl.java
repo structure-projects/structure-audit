@@ -31,7 +31,8 @@ public class AuditBizServiceImpl implements IAuditBizService {
             String key = AUDIT_REDIS_PREFIX + auditDTO.getRequestId();
             String value = objectMapper.writeValueAsString(auditDTO);
             redisTemplate.opsForValue().set(key, value);
-            log.info("Audit request cached to Redis, requestId: {}", auditDTO.getRequestId());
+            log.info("Audit request cached to Redis, requestId: {}, organizationId: {}",
+                    auditDTO.getRequestId(), auditDTO.getOrganizationId());
         } catch (JsonProcessingException e) {
             log.error("Failed to cache audit request to Redis, requestId: {}", auditDTO.getRequestId(), e);
         }
@@ -41,28 +42,31 @@ public class AuditBizServiceImpl implements IAuditBizService {
     public void handleResponse(AuditDTO auditDTO) {
         String key = AUDIT_REDIS_PREFIX + auditDTO.getRequestId();
         String cachedRequest = redisTemplate.opsForValue().get(key);
-        
+
         AuditDTO mergedAudit = auditDTO;
-        
+
         if (cachedRequest != null) {
             log.info("Found cached audit request in Redis, merging data, requestId: {}", auditDTO.getRequestId());
             try {
                 AuditDTO requestAudit = objectMapper.readValue(cachedRequest, AuditDTO.class);
                 mergedAudit = mergeAuditDTO(requestAudit, auditDTO);
             } catch (JsonProcessingException e) {
-                log.warn("Failed to deserialize cached audit request, using response data only, requestId: {}", auditDTO.getRequestId(), e);
+                log.warn("Failed to deserialize cached audit request, using response data only, requestId: {}",
+                        auditDTO.getRequestId(), e);
             } finally {
                 redisTemplate.delete(key);
             }
         } else {
-            log.info("No cached audit request found in Redis, using response data only, requestId: {}", auditDTO.getRequestId());
+            log.info("No cached audit request found in Redis, using response data only, requestId: {}",
+                    auditDTO.getRequestId());
         }
-        
+
         saveAudit(mergedAudit);
     }
 
     private AuditDTO mergeAuditDTO(AuditDTO request, AuditDTO response) {
         AuditDTO merged = new AuditDTO();
+        merged.setOrganizationId(request.getOrganizationId() != null ? request.getOrganizationId() : response.getOrganizationId());
         merged.setOperatorId(request.getOperatorId() != null ? request.getOperatorId() : response.getOperatorId());
         merged.setOperatorName(request.getOperatorName() != null ? request.getOperatorName() : response.getOperatorName());
         merged.setRequestId(request.getRequestId() != null ? request.getRequestId() : response.getRequestId());
@@ -82,7 +86,8 @@ public class AuditBizServiceImpl implements IAuditBizService {
         try {
             Audit audit = AuditAssembler.assembler(auditDTO);
             auditService.save(audit);
-            log.info("Audit saved successfully, requestId: {}", auditDTO.getRequestId());
+            log.info("Audit saved successfully, requestId: {}, organizationId: {}",
+                    auditDTO.getRequestId(), auditDTO.getOrganizationId());
         } catch (Exception e) {
             log.error("Failed to save audit, requestId: {}", auditDTO.getRequestId(), e);
             throw e;

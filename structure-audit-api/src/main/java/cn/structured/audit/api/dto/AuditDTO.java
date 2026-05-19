@@ -13,6 +13,12 @@ import lombok.Data;
 public class AuditDTO {
 
     /**
+     * 组织ID（租户ID）
+     * 用于多租户场景下的数据隔离
+     */
+    private Long organizationId;
+
+    /**
      * 操作人ID
      */
     private String operatorId;

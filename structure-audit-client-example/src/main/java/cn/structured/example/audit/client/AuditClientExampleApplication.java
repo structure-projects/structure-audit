@@ -1,6 +1,5 @@
 package cn.structured.example.audit.client;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
@@ -13,7 +12,6 @@ import org.springframework.context.annotation.ComponentScan;
 @EnableFeignClients
 // 扫描审计包如果需要使用 domain 功能是需哟啊添加
 @ComponentScan(basePackages = {"cn.structured.example.audit.client", "cn.structured.audit.api", "cn.structured.audit.domain.**"})
-@MapperScan("cn.structured.audit.domain.mapper")
 public class AuditClientExampleApplication {
 
     public static void main(String[] args) {

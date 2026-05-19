@@ -14,10 +14,14 @@ structure-audit-client-example/
 │   ├── AuditClientExampleApplication.java    # 启动类
 │   ├── aspect/
 │   │   └── AuditLogAspect.java               # 审计切面（注解方式）
+│   ├── config/
+│   │   └── WebConfig.java                    # Web配置（租户拦截器）
 │   ├── controller/
 │   │   └── AuditExampleController.java       # 示例控制器
 │   ├── feign/
 │   │   └── AuditFeignClient.java             # Feign客户端（HTTP方式）
+│   ├── interceptor/
+│   │   └── TenantContextInterceptor.java     # 租户上下文拦截器
 │   └── service/
 │       └── AuditService.java                 # 审计服务（MQ方式）
 ├── src/main/resources/
@@ -34,6 +38,71 @@ structure-audit-client-example/
 |----------|----------|
 | `structure-audit-api` | `AuditDTO`, `AuditRabbitConstants`, `AuditLog` |
 | `structure-audit-domain` | `AuditAssembler` 等 |
+
+## 租户上下文集成
+
+本系统已集成租户上下文支持，审计消息会自动携带租户ID（organizationId）：
+
+### 请求头说明
+
+| 请求头名称 | 说明 | 示例值 |
+|------------|------|--------|
+| `X-Tenant-Id` | 租户ID | `4` |
+| `X-Operator-Id` | 操作人ID | `user-001` |
+| `X-Operator-Name` | 操作人名称 | `张三` |
+
+### 客户端发送消息
+
+在发送审计消息时，系统会自动从 `TenantContextHolder` 获取当前租户ID：
+
+```java
+// 示例：AuditService 中的实现
+private Long getOrganizationId() {
+    try {
+        String tenantId = TenantContextHolder.getTenantId();
+        if (tenantId != null && !tenantId.isEmpty()) {
+            return Long.parseLong(tenantId);
+        }
+    } catch (Exception e) {
+        log.warn("获取租户ID失败: {}", e.getMessage());
+    }
+    return 1L;  // 默认租户ID
+}
+
+// 发送请求消息时自动注入租户ID
+public String sendRequestMessage(...) {
+    AuditDTO auditDTO = new AuditDTO();
+    auditDTO.setOrganizationId(getOrganizationId());  // 自动获取租户ID
+    // ...
+}
+```
+
+### 服务端接收消息
+
+审计服务在接收消息后会自动设置租户上下文：
+
+```java
+// 示例：AuditMessageEvent 中的实现
+@RabbitListener(queues = AuditRabbitConstants.AUDIT_REQUEST_QUEUE)
+public void onRequestMessage(AuditDTO auditDTO) {
+    try {
+        // 设置租户上下文
+        if (auditDTO.getOrganizationId() != null) {
+            TenantContextHolder.setTenantId(String.valueOf(auditDTO.getOrganizationId()));
+        }
+        // 处理业务逻辑
+        auditBizService.handleRequest(auditDTO);
+    } finally {
+        TenantContextHolder.clear();  // 清理租户上下文
+    }
+}
+```
+
+### 数据合并
+
+请求和响应消息合并时，租户ID的优先级为：
+1. 请求消息中的 organizationId（优先）
+2. 响应消息中的 organizationId
 
 ## 三种调用方式对比
 
@@ -93,11 +162,13 @@ mvn spring-boot:run
 # 用户登录
 curl -X POST http://localhost:8081/api/example/mq/login \
   -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
   -d '{"username":"admin","password":"123456"}'
 
 # 数据导出
 curl -X POST http://localhost:8081/api/example/mq/export \
   -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
   -d '{"type":"excel","startTime":"2026-01-01","endTime":"2026-05-31"}'
 ```
 
@@ -107,10 +178,12 @@ curl -X POST http://localhost:8081/api/example/mq/export \
 # 创建订单
 curl -X POST http://localhost:8081/api/example/http/order \
   -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
   -d '{"productId":"P001","quantity":10,"address":"北京市朝阳区"}'
 
 # 删除用户
-curl -X DELETE http://localhost:8081/api/example/http/user/user-1001
+curl -X DELETE http://localhost:8081/api/example/http/user/user-1001 \
+  -H "X-Tenant-Id: 4"
 ```
 
 #### 方式三：注解方式
@@ -119,6 +192,7 @@ curl -X DELETE http://localhost:8081/api/example/http/user/user-1001
 # 用户注册（操作人信息通过请求头传递）
 curl -X POST http://localhost:8081/api/example/annotation/register \
   -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
   -H "X-Operator-Id: user-003" \
   -H "X-Operator-Name: 王五" \
   -d '{"username":"newuser","password":"123456","email":"test@example.com"}'
@@ -126,9 +200,20 @@ curl -X POST http://localhost:8081/api/example/annotation/register \
 # 修改密码
 curl -X POST http://localhost:8081/api/example/annotation/change-password \
   -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: 4" \
   -H "X-Operator-Id: user-001" \
   -H "X-Operator-Name: 张三" \
   -d '{"oldPassword":"123456","newPassword":"654321"}'
+```
+
+### 验证租户透传
+
+测试完成后，可以通过审计中心的查询接口验证租户ID是否正确透传：
+
+```bash
+# 查询实时审计记录（需要先启动审计中心）
+curl -X GET "http://audit-center/api/audit/list?currentPage=1&pageSize=10" \
+  -H "Content-Type: application/json"
 ```
 
 ## 使用说明
@@ -142,7 +227,7 @@ private AuditService auditService;
 public void doBusiness() {
     long startTime = System.currentTimeMillis();
     
-    // Step 1: 业务开始时发送请求消息
+    // Step 1: 业务开始时发送请求消息（自动携带租户ID）
     String requestId = auditService.sendRequestMessage(
             "操作名称",
             "模块名称",
@@ -156,7 +241,7 @@ public void doBusiness() {
         // Step 2: 执行业务逻辑
         // ...
         
-        // Step 3: 业务成功时发送成功响应
+        // Step 3: 业务成功时发送成功响应（自动携带租户ID）
         auditService.sendSuccessResponse(requestId, 结果对象, startTime);
     } catch (Exception e) {
         // Step 3: 业务失败时发送失败响应
@@ -179,7 +264,7 @@ public void doBusiness() {
         // 执行业务逻辑
         // ...
         
-        // 直接记录审计日志
+        // 直接记录审计日志（自动携带租户ID）
         auditService.addAuditByHttp(
                 "操作名称",
                 "模块名称",
@@ -230,8 +315,10 @@ public class MyController {
 
 1. **MQ方式必须发送请求和响应两条消息**：审计系统采用请求-响应分离模式，只发请求消息数据不会持久化到数据库
 2. **操作人信息获取**：注解方式从请求头 `X-Operator-Id` 和 `X-Operator-Name` 获取操作人信息
-3. **异步记录**：注解方式采用异步记录审计日志，不影响业务性能
-4. **异常处理**：所有审计方式都有异常捕获，记录失败不会影响主业务
+3. **租户上下文**：系统自动从 `TenantContextHolder` 获取租户ID，通过请求头 `X-Tenant-Id` 设置
+4. **租户隔离**：每个租户的审计数据相互隔离，通过 `organizationId` 字段区分
+5. **异步记录**：注解方式采用异步记录审计日志，不影响业务性能
+6. **异常处理**：所有审计方式都有异常捕获，记录失败不会影响主业务
 
 ## 技术栈
 
@@ -241,3 +328,4 @@ public class MyController {
 - Spring AOP
 - Lombok
 - FastJSON
+- Tenant Context Holder（租户上下文）
