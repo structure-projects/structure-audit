@@ -1,4 +1,4 @@
-package cn.structured.audit.biz.config;
+package cn.structured.audit.biz.configureation;
 
 import cn.structured.audit.api.constant.AuditRabbitConstants;
 import org.springframework.amqp.core.Binding;

@@ -36,6 +36,11 @@ spring:
         max-wait: -1ms
         max-idle: 8
         min-idle: 0
+  elasticsearch:
+    rest:
+      uris: http://172.24.20.15:9200
+      username: elastic
+      password: Elastic_aXbnMp
   flyway:
     enabled: true # 开启flyway
     clean-disabled: true # 禁止清理数据表
