@@ -42,17 +42,12 @@ jobs:
 
       - name: Build project
         run: |
-          cd structure-user-dependencies
+          cd structure-audit-dependencies
           mvn clean install -Dmaven.test.skip=true -Drevision=$RELEASE_VERSION -s ../.mvn/settings.xml
 
       - name: Build structure-user-boot
         run: |
-          cd structure-user-boot
-          mvn clean package -Dmaven.test.skip=true -Drevision=$RELEASE_VERSION
-
-      - name: Build structure-user-cloud
-        run: |
-          cd structure-user-cloud
+          cd structure-audit-boot
           mvn clean package -Dmaven.test.skip=true -Drevision=$RELEASE_VERSION
 
       - name: Set up Docker Buildx

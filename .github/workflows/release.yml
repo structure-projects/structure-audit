@@ -44,9 +44,9 @@ jobs:
           echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
         fi
         
-    - name: Deploy structure-user-dependencies
+    - name: Deploy structure-audit-dependencies
       run: |
-        cd structure-user-dependencies
+        cd structure-audit-dependencies
         mvn clean deploy -P release,oss -Dmaven.test.skip=true -Drevision=$RELEASE_VERSION -Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true -s ../.mvn/settings.xml
       env:
         OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
