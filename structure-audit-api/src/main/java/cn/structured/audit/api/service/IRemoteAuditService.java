@@ -17,5 +17,5 @@ public interface IRemoteAuditService {
      *
      * @param audit 操作记录
      */
-    void saveOperationRecord(AuditDTO audit);
+    void saveAuditRecord(AuditDTO audit);
 }
