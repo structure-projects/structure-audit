@@ -13,6 +13,7 @@
     <artifactId>structure-audit-dependencies</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
+    <name>审计中心依赖管理模块</name>
     <description>审计中心依赖管理模块</description>
 
     <properties>
